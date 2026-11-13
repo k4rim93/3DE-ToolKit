@@ -7,7 +7,7 @@
 # 3DE4.script.addlabel: Deep Inspection !
 # 3DE4.script.addlabel: API Reference
 # 3DE4.script.addlabel: API Reference !
-"""3DEqualizer menu entry points for the read-only Kikz Toolkit."""
+"""3DEqualizer R7.1 read-only Kikz Toolkit menu entry points."""
 
 try:
     import tde4
@@ -16,44 +16,50 @@ except ImportError:
 
 try:
     import scene_inspector
-except ImportError:
+except ImportError as import_error:
     scene_inspector = None
+    _IMPORT_ERROR = import_error
+else:
+    _IMPORT_ERROR = None
 
 
 _HELP = {
     "Scene Inspector": (
-        "What it does: summarizes cameras, point groups, frame metadata, and point counts.\n"
-        "When to use it: for a read-only overview of the open 3DE scene.\n"
-        "How to use it: choose Scene Inspector from the Kikz Toolkit menu.\n"
-        "Required inputs: an open 3DE project; no user-entered values.\n"
-        "Expected output: a native requester with the available scene summary.\n"
-        "Safety level: Read Only."
+        "WHAT: Read-only overview of cameras, point groups and scene metadata.\n"
+        "WHEN: Initial health check of the open scene.\n"
+        "HOW: Choose Scene Inspector.\n"
+        "INPUTS: An open 3DE project; no manual input.\n"
+        "OUTPUT: Native report requester (console fallback if requester fails).\n"
+        "SAFETY: Read-only; no scene data is changed."
     ),
     "Quick Inspection": (
-        "What it does: shows a compact camera and point-group overview.\n"
-        "When to use it: for a fast routine check.\n"
-        "How to use it: choose Quick Inspection from the Kikz Toolkit menu.\n"
-        "Required inputs: an open 3DE project; no user-entered values.\n"
-        "Expected output: a compact native scene report.\n"
-        "Safety level: Read Only."
+        "WHAT: Compact camera and point-group overview.\n"
+        "WHEN: Fast routine scene check.\n"
+        "HOW: Choose Quick Inspection.\n"
+        "INPUTS: An open 3DE project.\n"
+        "OUTPUT: Compact read-only report.\n"
+        "SAFETY: Read-only."
     ),
     "Deep Inspection": (
-        "What it does: adds per-point calculated/survey data and valid 2D observations "
-        "at each camera's current frame.\n"
-        "When to use it: when a detailed point-level snapshot is needed.\n"
-        "How to use it: choose Deep Inspection from the Kikz Toolkit menu.\n"
-        "Required inputs: an open 3DE project. R7.1 is the primary supported release; "
-        "deep point details remain disabled there until its selector behavior is verified.\n"
-        "Expected output: a detailed read-only report.\n"
-        "Safety level: Read Only."
+        "WHAT: Point names, calculated-3D status/position, survey data and "
+        "current-frame 2D observation validity/positions.\n"
+        "WHEN: Point-level snapshot of an R7.1 scene.\n"
+        "HOW: Choose Deep Inspection.\n"
+        "INPUTS: An open 3DEqualizer R7.1 project. Point enumeration is "
+        "cross-checked against the documented point count.\n"
+        "OUTPUT: Read-only point report with per-item diagnostics.\n"
+        "SAFETY: Read-only; calculated coordinates are requested only after "
+        "a CALCULATED or TRIANGULATED status."
     ),
     "API Reference": (
-        "What it does: displays the toolkit's verified API scope and version caveats.\n"
-        "When to use it: to review the data sources used by the inspector.\n"
-        "How to use it: choose API Reference from the Kikz Toolkit menu.\n"
-        "Required inputs: none.\n"
-        "Expected output: a short API and compatibility summary.\n"
-        "Safety level: Read Only."
+        "KIKZ TOOLKIT — R7.1 ONLY\n"
+        "Camera and point-group overview uses documented R7.1 getters.\n"
+        "Deep inspection uses getPointList, getNoPoints, "
+        "getPointCalculated3DStatus, 2D validity and position getters.\n"
+        "Calculated position is requested only for CALCULATED/TRIANGULATED.\n"
+        "The report checks getPointList length against getNoPoints.\n"
+        "No R8.0/R8.1 compatibility is claimed.\n"
+        "Safety: read-only."
     ),
 }
 
@@ -70,7 +76,7 @@ def main():
         print("Kikz Toolkit requires the 3DE tde4 module.")
         return
     if scene_inspector is None:
-        print("scene_inspector.py must be installed beside kikz_toolkit.py.")
+        print("Kikz Toolkit could not import scene_inspector.py: %s" % _IMPORT_ERROR)
         return
 
     label, error = scene_inspector._call(tde4, "getLastScriptMenuLabel")
@@ -82,24 +88,14 @@ def main():
     if label.endswith(" !"):
         base_label = label[:-2]
         _show(_HELP.get(base_label, "No help is available."), base_label + " Help")
-        return
-    if label == "API Reference":
-        _show(
-            "Verified in R7.1, R8.0, and R8.1 summaries: version, camera, point-group, "
-            "and point getter names/signatures.\n"
-            "Deep point-list selection semantics are documented here for R8.1 only.\n"
-            "See docs/API_REFERENCE.md and docs/VERSION_COMPATIBILITY.md in the repository.\n"
-            "Read Only.",
-            "Kikz Toolkit — API Reference",
-        )
-        return
-    if scene_inspector is None:
-        print("scene_inspector.py must be installed beside kikz_toolkit.py.")
-        return
-    if label == "Deep Inspection":
+    elif label == "API Reference":
+        _show(_HELP["API Reference"], "Kikz Toolkit — R7.1 API Reference")
+    elif label == "Deep Inspection":
         scene_inspector.run_inspection(deep=True)
+    elif label == "Quick Inspection":
+        scene_inspector.run_inspection(quick=True)
     else:
-        scene_inspector.run_inspection(quick=(label == "Quick Inspection"))
+        scene_inspector.run_inspection()
 
 
 if __name__ == "__main__":
