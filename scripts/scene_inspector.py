@@ -318,7 +318,7 @@ def format_report(result, quick=False):
     if result.get("issues"):
         lines.extend(["", "PARTIAL RESULTS / DIAGNOSTICS"])
         lines.extend(["- %s" % _as_text(issue) for issue in result["issues"]])
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 
 def show_report(report, title="Kikz Toolkit — Scene Inspector"):
