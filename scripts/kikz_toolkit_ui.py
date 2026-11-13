@@ -80,7 +80,13 @@ def _page_text(key):
         result = scene_inspector.collect_scene(
             deep=(key == "deep"), quick=(key == "quick")
         )
-        return scene_inspector.format_report(result, quick=(key == "quick"))
+        report = scene_inspector.format_report(result, quick=(key == "quick"))
+        help_text = {
+            "scene": "HELP — WHAT: Full read-only camera and point-group overview. WHEN: Initial scene health check. INPUT: Open project. SAFETY: No scene changes.",
+            "quick": "HELP — WHAT: Compact camera and point-group summary. WHEN: Fast routine check. INPUT: Open project. SAFETY: No scene changes.",
+            "deep": "HELP — WHAT: Point-level status, survey and current-frame observation report. WHEN: Detailed read-only review. INPUT: Open R7.1 project. SAFETY: No scene changes; calculated positions are status-gated."
+        }
+        return report + "\\n\\n" + help_text[key]
     return _PAGE_TEXT.get(key, "No page content is available.")
 
 
