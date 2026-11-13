@@ -1,7 +1,7 @@
 # Phase 1 — Foundation and Read-Only Scene Inspector
 
 ## Status
-Planning/specification only until the owner explicitly approves implementation. Do not treat this document as permission to start coding.
+Implementation is authorized and in progress on `docs/project-handover-foundation`. The code remains read-only and must follow the verification limits documented in `docs/API_REFERENCE.md` and `docs/VERSION_COMPATIBILITY.md`.
 
 ## Deliverables
 
