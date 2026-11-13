@@ -8,10 +8,20 @@ try:
 except ImportError:
     tde4 = None
 
+import os
+import sys
+
+_UI_DIR = os.path.dirname(os.path.abspath(__file__))
+if _UI_DIR not in sys.path:
+    sys.path.insert(0, _UI_DIR)
+
 try:
     import scene_inspector
-except ImportError:
+except ImportError as import_error:
     scene_inspector = None
+    _SCENE_INSPECTOR_IMPORT_ERROR = import_error
+else:
+    _SCENE_INSPECTOR_IMPORT_ERROR = None
 
 _PAGES = [
     ("Dashboard", "dashboard"),
@@ -76,7 +86,8 @@ def _safe_call(name, *args):
 def _page_text(key):
     if key == "scene" or key == "quick" or key == "deep":
         if scene_inspector is None:
-            return "Scene Inspector module could not be imported. Install scene_inspector.py beside this file."
+            return ("Scene Inspector module could not be imported: %s" %
+                    _SCENE_INSPECTOR_IMPORT_ERROR)
         result = scene_inspector.collect_scene(
             deep=(key == "deep"), quick=(key == "quick")
         )
