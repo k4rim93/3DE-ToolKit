@@ -3,13 +3,15 @@ Professional multi-version Python toolkit for 3DEqualizer matchmove workflows
 
 ## Phase 1 status
 
-The read-only Scene Inspector foundation is under implementation on the feature branch. It reports camera metadata, point-group states, and point counts. Deep point and current-frame observation details are enabled only in R8.1, where the official structured API contract documents how to request all points. R7.1 and R8.0 deep enumeration remains disabled until the accepted selector semantics are independently verified for those releases.
+The read-only Scene Inspector foundation is under implementation on the feature branch. **R7.1 is the primary target and validation priority.** It reports camera metadata, point-group states, and point counts. Deep point and current-frame observation details are currently enabled only in R8.1, where the official structured API contract documents how to request all points. R7.1 and R8.0 deep enumeration remains disabled until the accepted selector semantics are independently verified for those releases; R7.1 verification takes priority.
 
 ## Supported releases
 
 - 3DEqualizer R7.1
 - 3DEqualizer R8.0
 - 3DEqualizer R8.1
+
+R7.1 is the primary supported release; R8.0 and R8.1 are secondary compatibility targets.
 
 The common overview calls are documented in the vendor command summary for each version. Actual behavior has not yet been smoke-tested inside these applications. See [version compatibility](docs/VERSION_COMPATIBILITY.md) and the [API reference](docs/API_REFERENCE.md) for exact coverage and unresolved details.
 

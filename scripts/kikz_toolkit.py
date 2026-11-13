@@ -42,8 +42,8 @@ _HELP = {
         "at each camera's current frame.\n"
         "When to use it: when a detailed point-level snapshot is needed.\n"
         "How to use it: choose Deep Inspection from the Kikz Toolkit menu.\n"
-        "Required inputs: an open 3DE project. Deep point details are available only "
-        "in R8.1 until older-release argument semantics are verified.\n"
+        "Required inputs: an open 3DE project. R7.1 is the primary supported release; "
+        "deep point details remain disabled there until its selector behavior is verified.\n"
         "Expected output: a detailed read-only report.\n"
         "Safety level: Read Only."
     ),

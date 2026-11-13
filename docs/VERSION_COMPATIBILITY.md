@@ -1,5 +1,7 @@
 # Version Compatibility
 
+**Priority:** R7.1 is the owner's primary production version and the first target for compatibility verification and in-application validation. R8.0 and R8.1 remain secondary targets.
+
 ## Evidence basis
 
 Each release was checked independently against its vendor command summary:
