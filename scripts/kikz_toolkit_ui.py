@@ -111,6 +111,12 @@ def main():
         _safe_call("appendTextAreaWidgetString", requester, "page_content",
                    _PAGE_TEXT["dashboard"])
 
+        # Window-relative anchors: navigation rail on the left, workspace on the right.
+        layout = [("navigation", 12, 690, 58, 12), ("page_content", 710, 12, 58, 12), ("brand", 12, 12, 12, 560), ("hint", 12, 690, 38, 530)]
+        for widget_name, left, right, top, bottom in layout:
+            _safe_call("setWidgetAttachModes", requester, widget_name, "ATTACH_WINDOW", "ATTACH_WINDOW", "ATTACH_WINDOW", "ATTACH_WINDOW")
+            _safe_call("setWidgetOffsets", requester, widget_name, left, right, top, bottom)
+
         while True:
             result = _safe_call("postCustomRequester", requester,
                                 "Kikz Toolkit — Workspace", 900, 620,
