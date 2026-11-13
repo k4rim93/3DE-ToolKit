@@ -107,9 +107,9 @@ def main():
                    "KIKZ TOOLKIT  |  R7.1", "ALIGN_LABEL_LEFT")
         _safe_call("addListWidget", requester, "navigation",
                    "Navigation", 0, 10)
-        for label, key in _PAGES:
+        for index, (label, _key) in enumerate(_PAGES):
             _safe_call("insertListWidgetItem", requester, "navigation",
-                       label, key, "LIST_ITEM_ATOM", -1)
+                       label, index, "LIST_ITEM_ATOM", -1)
         _safe_call("addLabelWidget", requester, "hint",
                    "Choose a section on the left.", "ALIGN_LABEL_LEFT")
         _safe_call("addTextAreaWidget", requester, "page_content",
@@ -164,3 +164,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
