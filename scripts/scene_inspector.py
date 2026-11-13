@@ -1,7 +1,8 @@
-"""Read-only scene data collection and report display for 3DEqualizer.
+"""Read-only scene inspection for 3DEqualizer R7.1.
 
-Only documented getters are used. Deep point/observation collection is enabled
-only for R8.1, whose official API contract documents the selector semantics.
+No scene setters, calculations, file writes, or network access are used.
+Deep inspection validates point-list completeness and calculated-3D status
+before requesting calculated coordinates.
 """
 
 try:
@@ -11,7 +12,6 @@ except ImportError:
 
 
 def _call(api, name, *args):
-    """Call a documented host API and return (value, error)."""
     function = getattr(api, name, None)
     if not callable(function):
         return None, "API unavailable: %s" % name
@@ -21,15 +21,15 @@ def _call(api, name, *args):
         return None, "%s: %s" % (name, error)
 
 
-def _version_is_r81(version):
-    return "8.1" in str(version)
-
-
 def _as_text(value):
     try:
         return str(value)
     except Exception:
         return "<unprintable>"
+
+
+def _is_r71(version):
+    return "7.1" in str(version)
 
 
 def _collect_cameras(api, issues, quick=False):
@@ -43,15 +43,19 @@ def _collect_cameras(api, issues, quick=False):
     except Exception:
         issues.append("getNoCameras returned a non-integer value.")
         return cameras
+    if count < 0:
+        issues.append("getNoCameras returned a negative count.")
+        return cameras
+    if count == 0:
+        return cameras
 
     camera_id, error = _call(api, "getFirstCamera")
     if error:
         issues.append(error)
         return cameras
-
-    for unused_index in range(max(0, count)):
+    for index in range(count):
         if camera_id is None:
-            issues.append("Camera iteration ended before the documented camera count.")
+            issues.append("Camera iteration ended before getNoCameras count.")
             break
         item = {"id": camera_id}
         getters = [("name", "getCameraName"), ("type", "getCameraType")]
@@ -62,21 +66,21 @@ def _collect_cameras(api, issues, quick=False):
                 ("sequence", "getCameraSequenceAttr"),
                 ("lens_id", "getCameraLens"),
             ])
-        for field, function_name in getters:
-            value, field_error = _call(api, function_name, camera_id)
+        for field, api_name in getters:
+            value, field_error = _call(api, api_name, camera_id)
             if field_error:
                 issues.append("Camera %s: %s" % (_as_text(camera_id), field_error))
             else:
                 item[field] = value
         lens_id = item.get("lens_id")
-        if lens_id is not None:
+        if lens_id:
             lens_name, lens_error = _call(api, "getLensName", lens_id)
             if lens_error:
                 issues.append("Camera %s lens: %s" % (_as_text(camera_id), lens_error))
             else:
                 item["lens_name"] = lens_name
         cameras.append(item)
-        if unused_index + 1 < count:
+        if index + 1 < count:
             camera_id, error = _call(api, "getNextCamera", camera_id)
             if error:
                 issues.append(error)
@@ -95,15 +99,19 @@ def _collect_point_groups(api, issues, quick=False):
     except Exception:
         issues.append("getNoPGroups returned a non-integer value.")
         return groups
+    if count < 0:
+        issues.append("getNoPGroups returned a negative count.")
+        return groups
+    if count == 0:
+        return groups
 
     group_id, error = _call(api, "getFirstPGroup")
     if error:
         issues.append(error)
         return groups
-
-    for unused_index in range(max(0, count)):
+    for index in range(count):
         if group_id is None:
-            issues.append("Point-group iteration ended before the documented count.")
+            issues.append("Point-group iteration ended before getNoPGroups count.")
             break
         item = {"id": group_id}
         getters = [("name", "getPGroupName"), ("type", "getPGroupType")]
@@ -112,14 +120,14 @@ def _collect_point_groups(api, issues, quick=False):
                 ("enabled", "getPGroupEnabledFlag"),
                 ("point_count", "getNoPoints"),
             ])
-        for field, function_name in getters:
-            value, field_error = _call(api, function_name, group_id)
+        for field, api_name in getters:
+            value, field_error = _call(api, api_name, group_id)
             if field_error:
                 issues.append("Point group %s: %s" % (_as_text(group_id), field_error))
             else:
                 item[field] = value
         groups.append(item)
-        if unused_index + 1 < count:
+        if index + 1 < count:
             group_id, error = _call(api, "getNextPGroup", group_id)
             if error:
                 issues.append(error)
@@ -127,48 +135,88 @@ def _collect_point_groups(api, issues, quick=False):
     return groups
 
 
-def _collect_deep_r81(api, cameras, groups, issues):
-    """Inspect per-point values and current-frame 2D observations in R8.1."""
+def _collect_deep_r71(api, cameras, groups, issues):
     points = []
-    camera_ids = [camera["id"] for camera in cameras]
     current_frames = {}
-    for camera_id in camera_ids:
-        frame, frame_error = _call(api, "getCurrentFrame", camera_id)
-        if frame_error:
-            issues.append("Camera %s: %s" % (_as_text(camera_id), frame_error))
+    for camera in cameras:
+        camera_id = camera["id"]
+        frame, error = _call(api, "getCurrentFrame", camera_id)
+        if error:
+            issues.append("Camera %s: %s" % (_as_text(camera_id), error))
         else:
             current_frames[camera_id] = frame
 
     for group in groups:
         group_id = group["id"]
+        expected_count = group.get("point_count")
         point_ids, error = _call(api, "getPointList", group_id, 0)
         if error:
             issues.append("Point group %s: %s" % (_as_text(group_id), error))
             continue
-        for point_id in point_ids or []:
+        if not isinstance(point_ids, (list, tuple)):
+            issues.append("Point group %s: getPointList returned a non-list; skipped." %
+                          _as_text(group_id))
+            continue
+        if expected_count is not None:
+            try:
+                if len(point_ids) != int(expected_count):
+                    issues.append(
+                        "Point group %s: point-list count (%d) does not match "
+                        "getNoPoints (%s); group skipped." %
+                        (_as_text(group_id), len(point_ids), _as_text(expected_count))
+                    )
+                    continue
+            except Exception:
+                issues.append("Point group %s: invalid point count; group skipped." %
+                              _as_text(group_id))
+                continue
+
+        for point_id in point_ids:
             point = {"group_id": group_id, "id": point_id}
-            for field, function_name in (
+            for field, api_name in (
                 ("name", "getPointName"),
-                ("calculated_3d", "getPointCalcPosition3D"),
                 ("survey_3d", "getPointSurveyPosition3D"),
                 ("survey_mode", "getPointSurveyMode"),
             ):
-                value, field_error = _call(api, function_name, group_id, point_id)
+                value, field_error = _call(api, api_name, group_id, point_id)
                 if field_error:
                     issues.append("Point %s: %s" % (_as_text(point_id), field_error))
                 else:
                     point[field] = value
 
+            status, status_error = _call(
+                api, "getPointCalculated3DStatus", group_id, point_id
+            )
+            if status_error:
+                issues.append("Point %s calculated-3D status: %s" %
+                              (_as_text(point_id), status_error))
+                point["calculated_3d_status"] = "unavailable"
+            else:
+                point["calculated_3d_status"] = status
+                if status in ("CALCULATED", "TRIANGULATED"):
+                    value, value_error = _call(
+                        api, "getPointCalcPosition3D", group_id, point_id
+                    )
+                    if value_error:
+                        issues.append("Point %s calculated-3D position: %s" %
+                                      (_as_text(point_id), value_error))
+                    else:
+                        point["calculated_3d"] = value
+                elif status == "NOT_CALCULATED":
+                    point["calculated_3d"] = "Not calculated"
+                else:
+                    issues.append("Point %s: unknown calculated-3D status %s; "
+                                  "position not requested." %
+                                  (_as_text(point_id), _as_text(status)))
+
             observations = []
-            for camera_id in camera_ids:
-                if camera_id not in current_frames:
-                    continue
-                frame = current_frames[camera_id]
+            for camera_id, frame in current_frames.items():
                 valid, valid_error = _call(
                     api, "isPointPos2DValid", group_id, point_id, camera_id, frame
                 )
                 if valid_error:
-                    issues.append("Point %s: %s" % (_as_text(point_id), valid_error))
+                    issues.append("Point %s observation: %s" %
+                                  (_as_text(point_id), valid_error))
                     continue
                 observation = {"camera_id": camera_id, "frame": frame, "valid": valid}
                 if valid == 1:
@@ -176,7 +224,8 @@ def _collect_deep_r81(api, cameras, groups, issues):
                         api, "getPointPosition2D", group_id, point_id, camera_id, frame
                     )
                     if position_error:
-                        issues.append("Point %s: %s" % (_as_text(point_id), position_error))
+                        issues.append("Point %s 2D position: %s" %
+                                      (_as_text(point_id), position_error))
                     else:
                         observation["position"] = position
                 observations.append(observation)
@@ -186,12 +235,11 @@ def _collect_deep_r81(api, cameras, groups, issues):
 
 
 def collect_scene(api=None, deep=False, quick=False):
-    """Return structured read-only scene data and scoped diagnostic messages."""
     api = api or tde4
     if api is None:
         return {"version": "unknown", "cameras": [], "point_groups": [],
-                "points": [], "issues": ["The 3DE tde4 module is unavailable."]}
-
+                "points": [], "issues": ["The 3DE tde4 module is unavailable."],
+                "deep": bool(deep)}
     version, error = _call(api, "get3DEVersion")
     issues = []
     if error:
@@ -202,40 +250,33 @@ def collect_scene(api=None, deep=False, quick=False):
     groups = _collect_point_groups(api, issues, quick=quick)
     points = []
     if deep:
-        if _version_is_r81(version):
-            points = _collect_deep_r81(api, cameras, groups, issues)
+        if _is_r71(version):
+            points = _collect_deep_r71(api, cameras, groups, issues)
         else:
             issues.append(
-                "Deep point/observation inspection is disabled outside R8.1: "
-                "the selected-only list argument semantics are not verified "
-                "for the older releases."
+                "Deep Inspection is restricted to detected 3DEqualizer R7.1. "
+                "Version string did not identify R7.1; point-level calls were skipped."
             )
-
     return {
-        "version": version,
-        "cameras": cameras,
-        "point_groups": groups,
-        "points": points,
-        "issues": issues,
-        "deep": bool(deep),
+        "version": version, "cameras": cameras, "point_groups": groups,
+        "points": points, "issues": issues, "deep": bool(deep),
     }
 
 
 def format_report(result, quick=False):
     lines = [
         "Kikz Toolkit — Scene Inspector",
-        "Safety: Read Only",
-        "3DE version: %s" % _as_text(result.get("version", "unknown")),
+        "Target: 3DEqualizer R7.1",
+        "Safety: READ ONLY — no scene changes",
+        "Detected version: %s" % _as_text(result.get("version", "unknown")),
         "Cameras: %d" % len(result.get("cameras", [])),
         "Point groups: %d" % len(result.get("point_groups", [])),
-        "",
-        "CAMERAS",
+        "", "CAMERAS",
     ]
     for camera in result.get("cameras", []):
         lines.append("- %s [%s]" % (
             _as_text(camera.get("name", camera.get("id", "?"))),
-            _as_text(camera.get("type", "type unavailable")),
-        ))
+            _as_text(camera.get("type", "type unavailable"))))
         details = []
         for label, key in (("frames", "frame_count"), ("fps", "fps"),
                            ("sequence", "sequence"), ("lens", "lens_name")):
@@ -252,38 +293,35 @@ def format_report(result, quick=False):
             _as_text(group.get("name", group.get("id", "?"))),
             _as_text(group.get("type", "type unavailable")),
             _as_text(group.get("enabled", "unknown")),
-            _as_text(group.get("point_count", "unknown")),
-        ))
+            _as_text(group.get("point_count", "unknown"))))
 
     if result.get("deep") and not quick:
         lines.extend(["", "DEEP POINT DATA"])
         for point in result.get("points", []):
-            lines.append("- %s | group=%s | calc3D=%s | survey3D=%s | survey=%s" % (
+            lines.append("- %s | group=%s | calc3D status=%s | calc3D=%s | "
+                         "survey3D=%s | survey=%s" % (
                 _as_text(point.get("name", point.get("id", "?"))),
                 _as_text(point.get("group_id", "?")),
+                _as_text(point.get("calculated_3d_status", "unknown")),
                 _as_text(point.get("calculated_3d", "unavailable")),
                 _as_text(point.get("survey_3d", "unavailable")),
-                _as_text(point.get("survey_mode", "unavailable")),
-            ))
+                _as_text(point.get("survey_mode", "unavailable"))))
             for observation in point.get("observations", []):
                 line = "  camera=%s frame=%s valid=%s" % (
                     _as_text(observation.get("camera_id")),
                     _as_text(observation.get("frame")),
-                    _as_text(observation.get("valid")),
-                )
+                    _as_text(observation.get("valid")))
                 if "position" in observation:
                     line += " position=%s" % _as_text(observation["position"])
                 lines.append(line)
 
     if result.get("issues"):
         lines.extend(["", "PARTIAL RESULTS / DIAGNOSTICS"])
-        for issue in result["issues"]:
-            lines.append("- %s" % _as_text(issue))
+        lines.extend(["- %s" % _as_text(issue) for issue in result["issues"]])
     return "\n".join(lines)
 
 
 def show_report(report, title="Kikz Toolkit — Scene Inspector"):
-    """Display text in a native requester; fall back to the 3DE console."""
     api = tde4
     if api is None:
         print(report)
@@ -309,6 +347,12 @@ def show_report(report, title="Kikz Toolkit — Scene Inspector"):
 
 
 def run_inspection(deep=False, quick=False):
-    result = collect_scene(deep=deep, quick=quick)
-    show_report(format_report(result, quick=quick))
-    return result
+    try:
+        result = collect_scene(deep=deep, quick=quick)
+        show_report(format_report(result, quick=quick))
+        return result
+    except Exception as error:
+        message = "Inspection stopped safely after an unexpected Python error: %s" % error
+        print(message)
+        return {"version": "unknown", "cameras": [], "point_groups": [],
+                "points": [], "issues": [message], "deep": bool(deep)}
