@@ -84,72 +84,60 @@ def _page_text(key):
     return _PAGE_TEXT.get(key, "No page content is available.")
 
 
-def _show_page(page_key):
-    requester = _safe_call("createCustomRequester")
-    try:
-        _safe_call("addLabelWidget", requester, "page_title",
-                   "KIKZ TOOLKIT  |  " + page_key.replace("_", " ").upper(),
-                   "ALIGN_LABEL_LEFT")
-        _safe_call("addTextAreaWidget", requester, "page_content",
-                   "Workspace", 28, 0)
-        _safe_call("appendTextAreaWidgetString", requester, "page_content",
-                   _page_text(page_key))
-        _safe_call("postCustomRequester", requester, "Kikz Toolkit — R7.1",
-                   900, 620, "Back", "Close")
-    finally:
-        _safe_call("deleteCustomRequester", requester)
-
-
-def _show_navigation():
-    requester = _safe_call("createCustomRequester")
-    try:
-        _safe_call("addLabelWidget", requester, "brand",
-                   "KIKZ TOOLKIT  |  R7.1", "ALIGN_LABEL_LEFT")
-        _safe_call("addListWidget", requester, "navigation",
-                   "Navigation", 0, 12)
-        for label, key in _PAGES:
-            _safe_call("insertListWidgetItem", requester, "navigation",
-                       label, key, "LIST_ITEM_ATOM", -1)
-        _safe_call("addLabelWidget", requester, "hint",
-                   "Select a section, then press Open Section.",
-                   "ALIGN_LABEL_LEFT")
-        return _safe_call("postCustomRequester", requester,
-                          "Kikz Toolkit — Workspace", 420, 520,
-                          "Open Section", "Close")
-    finally:
-        _safe_call("deleteCustomRequester", requester)
+def _set_page_content(requester, page_key):
+    _safe_call("clearTextAreaWidget", requester, "page_content")
+    _safe_call("appendTextAreaWidgetString", requester, "page_content",
+               _page_text(page_key))
 
 
 def main():
     if tde4 is None:
         print("Kikz Toolkit requires the 3DE tde4 module.")
         return
+    requester = None
     try:
+        requester = _safe_call("createCustomRequester")
+        _safe_call("addLabelWidget", requester, "brand",
+                   "KIKZ TOOLKIT  |  R7.1", "ALIGN_LABEL_LEFT")
+        _safe_call("addListWidget", requester, "navigation",
+                   "Navigation", 0, 10)
+        for label, key in _PAGES:
+            _safe_call("insertListWidgetItem", requester, "navigation",
+                       label, key, "LIST_ITEM_ATOM", -1)
+        _safe_call("addLabelWidget", requester, "hint",
+                   "Choose a section on the left.", "ALIGN_LABEL_LEFT")
+        _safe_call("addTextAreaWidget", requester, "page_content",
+                   "Workspace", 24, 0)
+        _safe_call("appendTextAreaWidgetString", requester, "page_content",
+                   _PAGE_TEXT["dashboard"])
+
         while True:
-            result = _show_navigation()
+            result = _safe_call("postCustomRequester", requester,
+                                "Kikz Toolkit — Workspace", 900, 620,
+                                "Open Section", "Close")
             if result != 1:
                 break
-            requester = _safe_call("createCustomRequester")
-            try:
-                _safe_call("addListWidget", requester, "navigation",
-                           "Navigation", 0, 12)
-                for label, key in _PAGES:
-                    _safe_call("insertListWidgetItem", requester, "navigation",
-                               label, key, "LIST_ITEM_ATOM", -1)
-                _safe_call("postCustomRequester", requester,
-                           "Kikz Toolkit — Choose Section", 420, 520,
-                           "Open Section", "Close")
-                selected = _safe_call("getListWidgetSelectedItems",
-                                      requester, "navigation")
-                if not selected:
-                    break
-                selected_index = int(selected[0])
-                if selected_index < 0 or selected_index >= len(_PAGES):
-                    break
-                page_key = _PAGES[selected_index][1]
-            finally:
-                _safe_call("deleteCustomRequester", requester)
-            _show_page(page_key)
+            selected = _safe_call("getListWidgetSelectedItems",
+                                  requester, "navigation")
+            if not selected:
+                _safe_call("clearTextAreaWidget", requester, "page_content")
+                _safe_call("appendTextAreaWidgetString", requester, "page_content",
+                           "Select a section from the navigation list first.")
+                continue
+            selected_index = int(selected[0])
+            if selected_index < 0 or selected_index >= len(_PAGES):
+                continue
+            page_key = _PAGES[selected_index][1]
+            _set_page_content(requester, page_key)
+
+            # Re-post the same requester: one requester, one workspace,
+            # no separate tool windows. Back returns to navigation.
+            result = _safe_call("postCustomRequester", requester,
+                                "Kikz Toolkit — Workspace", 900, 620,
+                                "Back", "Close")
+            if result != 1:
+                break
+            _set_page_content(requester, "dashboard")
     except Exception as error:
         try:
             _safe_call("postQuestionRequester", "Kikz Toolkit",
@@ -157,6 +145,9 @@ def main():
                        "Close")
         except Exception:
             print("Kikz Toolkit UI error: %s" % error)
+    finally:
+        if requester is not None:
+            _safe_call("deleteCustomRequester", requester)
 
 
 if __name__ == "__main__":
