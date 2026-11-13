@@ -2,33 +2,33 @@
 
 You are working in the public GitHub repository `k4rim93/3DE-ToolKit`.
 
-## First actions
-1. Read `README.md`.
-2. Read `docs/PROJECT_HANDOVER.md`.
-3. Read `docs/BUILD_SPEC_PHASE_1.md`.
-4. Read `docs/DEVELOPMENT_RULES.md`.
-5. Inspect the complete repository tree and current branch before doing anything.
-6. Report the current state and any conflicts.
+## Read first
+1. `README.md`
+2. `docs/PROJECT_HANDOVER.md`
+3. `docs/BUILD_SPEC_PHASE_1.md`
+4. `docs/DEVELOPMENT_RULES.md`
+5. Inspect the repository tree, current branch, and working-tree status.
+
+## Owner's current decision
+**Work with 3DEqualizer R7.1 only for now.** R8.0 and R8.1 are out of scope. Do not implement multi-version support or spend time validating R8.x unless the owner explicitly changes this decision.
 
 ## Current assignment
-**Inspection and planning only. Do not implement code yet.**
+Perform a READ-ONLY audit of the existing prototype scripts:
+- `scripts/scene_inspector.py`
+- `scripts/kikz_toolkit.py`
 
-Prepare a concise report containing:
-- Existing files/folders and their purpose.
-- Current branch and whether the working tree is clean (for local work).
-- Proposed architecture for the Phase 1 Scene Inspector.
-- API research matrix for R7.1, R8.0, and R8.1, with official documentation references and exact unresolved gaps.
-- Proposed test strategy, distinguishing static, mocked, and in-application tests.
-- Risks, conflicts, and decisions requiring owner approval.
+Compare every API call and behavior against official R7.1 documentation only. Check calculated 3D status-before-position logic, tracking validity checks, lens access, Custom Requester signatures/assumptions, read-only safety, error handling, and whether each menu item/help action is genuinely functional.
+
+Write the findings to `docs/CODE_AUDIT_REPORT.md`. Report-only: do not modify/create/delete/rename implementation files. Do not run scripts inside 3DE and do not claim runtime validation.
 
 ## Hard constraints
-- Do not commit to `main`.
-- Do not create or modify implementation files during this planning task.
+- Stay on `docs/project-handover-foundation`.
+- Do not commit to or modify `main`.
+- Do not implement or modify code until the owner explicitly approves a specific task.
 - Do not install packages or modify Python environments / PATH.
 - Do not change any 3DE scene.
 - Do not touch the user's existing Maya-to-3DE exporter/importer or any unrelated project.
-- Do not invent `tde4` APIs or signatures.
+- Do not invent `tde4` APIs or signatures; use R7.1 official docs only.
 - This is a public repository: do not add secrets, production assets, client data, or proprietary third-party code.
-- Stop and ask if any requirement is ambiguous or a protected file/path conflict appears.
 
-After the report, stop and wait for explicit approval before implementation.
+After the audit, review the report, commit and push the report to the current branch only, and provide the commit SHA and file URL. Then stop and wait for explicit approval.
